@@ -14,10 +14,10 @@ def shudu_print(blank_cell_format=None):
     # print(shudu_table)
     print_table = PrettyTable()
     for i in range(9):
-        if not blank_cell_format:
-            row = list(cell['num'] if cell['num'] else '--' for cell in shudu_table[i])
-        elif blank_cell_format == 'possible_numbers':
+        if blank_cell_format == 'possible_numbers':
             row = list(cell['num'] if cell['num'] else str(cell['possible_numbers']) for cell in shudu_table[i])
+        else:
+            row = list(cell['num'] if cell['num'] else '--' for cell in shudu_table[i])
         print_table.add_row(row)
     print(print_table)
 
@@ -30,7 +30,8 @@ def load_orginal_table(excel_path):
         row_values = sheet.row_values(i)
         # print(row_values)
         for j in range(0, 9):
-            cell = {'row': i, 'column': j, 'num': None, 'possible_numbers': deepcopy(all_numbers), 'guess_level': 0, 'guess_order': 0}
+            cell = {'row': i, 'column': j, 'num': None, 'possible_numbers': deepcopy(all_numbers), 'guess_level': 0,
+                    'guess_order': 0}
             value = str(row_values[j])
             if value:
                 try:
@@ -126,7 +127,6 @@ def guess_cells_by_cell_possible_numbers():
             update_cell(shudu_table[i][j])
     print(guesses)
     return guessed_numbers
-
 
 
 if __name__ == '__main__':
