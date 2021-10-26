@@ -7,7 +7,7 @@ all_numbers = list(i+1 for i in range(9))
 shudu_table = []  # 数独表格
 shudu_table_by_column = []  # 按每列重排的数独表格，方便按列查找
 shudu_table_by_block = []  # 按块重排的数独表格，方便按块查找
-guesses = {'level': 0, 'first_guess_cell_detail': {}, 'order_now': 0}   # detail里面是每个级别对应的第一个猜测的单元格索引以及猜测的数字
+guesses = {'level': 0, 'first_guess_cell_detail': {}, 'guessed_num_cnt': 0}   # detail里面是每个级别对应的第一个猜测的单元格索引以及猜测的数字
 number_possible_cells_by_block = {}
 # 每一次开始猜测都需要一次deep_copy
 error = {'status': False, 'position': None, 'description': None}
@@ -26,7 +26,8 @@ def shudu_print(blank_cell_format=None):
     for i in range(9):
         if blank_cell_format == 'detail':
             row = list(concat_str(cell['num'], '(', cell['guess_level'], ', ', cell['guess_order'], ')') if cell[
-                'num'] else str(cell['possible_numbers']) for cell in shudu_table[i])
+                'num'] and cell['guess_order'] != 0 else (str(cell['possible_numbers']) if not cell[
+                'num'] else cell['num']) for cell in shudu_table[i])
         else:
             row = list(cell['num'] if cell['num'] else '--' for cell in shudu_table[i])
         print_table.add_row(row)
@@ -75,10 +76,6 @@ def load_orginal_table(excel_path):
     return shudu_table
 
 
-def find_block_index(cell):
-    return (cell['row'] // 3, cell['column'] // 3)
-
-
 def exclude_possible_numbers(existing_numbers, possbile_numbers):
     temp_nums = deepcopy(possbile_numbers)
     for num in temp_nums:
@@ -93,10 +90,10 @@ def update_cell(cell):
         return cell
     # 只有一个可能的数字，就直接填充
     if len(cell['possible_numbers']) == 1:
-        guesses['order_now'] += 1
+        guesses['guessed_num_cnt'] += 1
         cell['num'] = cell['possible_numbers'][0]
         cell['guess_level'] = guesses['level']
-        cell['guess_order'] = guesses['order_now']
+        cell['guess_order'] = guesses['guessed_num_cnt']
     # 没有可能的数字，则表明猜测有误或数独有误
     if len(cell['possible_numbers']) == 0:
         error['status'] = True
@@ -109,9 +106,12 @@ def find_cell_possible_nums():
     for table in [shudu_table, shudu_table_by_column, shudu_table_by_block]:
         for i in range(9):
             for j in range(9):
-                existing_numbers = list(c['num'] for c in table[i])
                 cell = table[i][j]
-                cell['possible_numbers'] = exclude_possible_numbers(existing_numbers, cell['possible_numbers'])
+                if cell['num']:
+                    continue
+                else:
+                    existing_numbers = list(c['num'] for c in table[i])
+                    cell['possible_numbers'] = exclude_possible_numbers(existing_numbers, cell['possible_numbers'])
 
 
 # 每一行、列、块挨个看每个数字，某个数字只看在一个位置，就填充它
@@ -142,17 +142,39 @@ def find_one_possible_place_numbers():
             break
 
 
+def find_one_possible_num_cells():
+    for i in range(9):
+        for j in range(9):
+            update_cell(shudu_table[i][j])
+
+
+def check_shudu_table():
+    for table in [shudu_table, shudu_table_by_column, shudu_table_by_block]:
+        for i in range(9):
+            if sum(c['num'] for c in table[i])
+
+
 def main():
     path = './数独表格.xlsx'
     load_orginal_table(path)
     print('读取原始表格，数据如下：')
     shudu_print()
 
-    print('\n\n', '第一轮猜测')
+    cycle = 1
+    guessed_num_cnt = -1
+    while guesses['guessed_num_cnt'] > guessed_num_cnt:
+        print('\n\n', '第', cycle, '轮猜测')
+        guessed_num_cnt = guesses['guessed_num_cnt']
+        find_cell_possible_nums()
+        find_one_possible_num_cells()
+        find_one_possible_place_numbers()
 
-    find_cell_possible_nums()
-    find_one_possible_place_numbers()
-    shudu_print('detail')
+
+        print('本轮猜出', guesses['guessed_num_cnt']-guessed_num_cnt, '个数字。')
+        shudu_print('detail')
+        cycle += 1
+
+    print(guesses)
 
 
 if __name__ == '__main__':
