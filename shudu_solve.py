@@ -171,7 +171,8 @@ def exclude_cell_possible_numbers_by_other_block_possible_numbers():
 
 # 同一个块或行、列内，某几个数字可能在的位置是重复的，那么这几个格也只能是这几个数字
 def exclude_cell_possible_numbers_by_number_possible_cells():
-    pass
+    for table in [shudu_table, shudu_table_by_column, shudu_table_by_block]:
+        
 
 
 # 每一行、列、块挨个看每个数字，某个数字只看在一个位置，就填充它
