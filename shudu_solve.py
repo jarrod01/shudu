@@ -170,8 +170,15 @@ def exclude_cell_possible_numbers_by_other_block_possible_numbers():
 
 
 # 同一个块或行、列内，某几个数字可能在的位置是重复的，那么这几个格也只能是这几个数字
-def exclude_cell_possible_numbers_by_number_possible_cells():
-    for table in [shudu_table, shudu_table_by_column, shudu_table_by_block]:
+def exclude_cell_possible_numbers_by_number_possible_cells(nums_possible_cells):
+    cnt = len(nums_possible_cells)
+    # 只有一个数字的话，就不用猜测了
+    # 只有2个数字的话，那这两个单元格的可能的数字用其他规则也不可能包含除这两个数字以外的其他数字了
+    if cnt < 3:
+        return
+    nums = list(nums_possible_cells.keys())
+
+
         
 
 
@@ -180,23 +187,27 @@ def find_one_possible_place_numbers():
     for table in [shudu_table, shudu_table_by_column, shudu_table_by_block]:
         for i in range(9):
             existing_numbers = list(c['num'] for c in table[i])
+            nums_possible_cells = {}
             for num in all_numbers:
                 if num in existing_numbers:
                     continue
-                num_possible_count = 0
-                last_num_possible_cell = None
+                num_possible_cells = []
                 for cell in table[i]:
                     if num in cell['possible_numbers']:
-                        num_possible_count += 1
-                        last_num_possible_cell = cell
-                if num_possible_count == 0:
+                        num_possible_cells.append(cell)
+
+                if len(num_possible_cells) == 0:
                     error['status'] = True
                     error['position'] = (i)
                     error['description'] = str(num) + '在' + str(i) + '没有找到可能的位置！'
                     break
-                elif num_possible_count == 1:
-                    last_num_possible_cell['possible_numbers'] = [num]
-                    update_cell(last_num_possible_cell)
+                elif len(num_possible_cells) == 1:
+                    num_possible_cells[0]['possible_numbers'] = [num]
+                    update_cell(num_possible_cells[0])
+                nums_possible_cells[num] = num_possible_cells
+
+            # 同一个块或行、列内，某几个数字可能在的位置是重复的，那么这几个格也只能是这几个数字
+            exclude_cell_possible_numbers_by_number_possible_cells(nums_possible_cells)
             if error['status']:
                 break
         if error['status']:
