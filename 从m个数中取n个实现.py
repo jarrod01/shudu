@@ -25,6 +25,8 @@
 
 '''
 python itertools 实现
+python中有个标准库itertools就是专门用来解决各种排序，组合问题的，例子如下：
+https://blog.csdn.net/qq_38606712/article/details/96597726
 '''
 import itertools
 
