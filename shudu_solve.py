@@ -29,14 +29,20 @@ def shudu_print(blank_cell_format=None):
         if blank_cell_format == 'detail':
             row = list(str(cell['possible_numbers']) if not cell[
                 'num'] else (concat_str(cell['num'], '(', cell['guess_level'], ', ', cell['guess_order'], ')') if cell[
-                'guess_order'] != 0 else  cell['num']) for cell in shudu_table[i])
+                'guess_order'] != 0 or cell['guess_level'] != 0 else cell['num']) for cell in shudu_table[i])
         else:
             row = list(cell['num'] if cell['num'] else '--' for cell in shudu_table[i])
         print_table.add_row(row)
+        if i % 3 == 2:
+            print_table.add_row(['']*9)
     print(print_table)
 
 
 def update_column_and_block_table():
+    # 每次update要重置一下，要不然猜测数字之后还是在之前的基础上计算，就会出错
+    global shudu_table_by_block, shudu_table_by_column
+    shudu_table_by_block = []
+    shudu_table_by_column = []
     for i in range(9):
         shudu_table_by_column.append([])
         for j in range(9):
@@ -46,8 +52,6 @@ def update_column_and_block_table():
             if i % 3 == 0 and j % 3 == 0:
                 shudu_table_by_block.append([])
             shudu_table_by_block[(i//3)*3 + j//3].append(shudu_table[i][j])
-    # print(shudu_table_by_column)
-    # print(shudu_table_by_block)
 
 
 def load_orginal_table(excel_path):
@@ -115,6 +119,8 @@ def find_cell_possible_nums():
                 else:
                     existing_numbers = list(c['num'] for c in table[i])
                     cell['possible_numbers'] = exclude_possible_numbers(existing_numbers, cell['possible_numbers'])
+                    if len(cell['possible_numbers']) == 1:
+                        update_cell(cell)
 
 
 # 根据同一行或列的其他两个块的可能的数字，排除本块的可能的数组
@@ -229,6 +235,7 @@ def find_one_possible_place_numbers():
 
 
 # 查找只有一个可能的数字的单元格，并填充
+# 在单元格可能的数字排除的时候做了，这个函数没用
 def find_one_possible_num_cells():
     for i in range(9):
         for j in range(9):
@@ -248,6 +255,8 @@ def check_shudu_table():
 
 
 def solve_by_caculate():
+    print('开始计算，计算之前：')
+    shudu_print('detail')
     cycle = 1
     cycle_before_shudu_md5 = ''
     cycle_after_shudu_md5 = None
@@ -257,19 +266,20 @@ def solve_by_caculate():
         cycle_before_shudu_md5 = md5(str(shudu_table).encode('utf-8')).hexdigest()
 
         find_cell_possible_nums()
-        find_one_possible_num_cells()
-        exclude_cell_possible_numbers_by_other_block_possible_numbers()
         find_one_possible_place_numbers()
+        exclude_cell_possible_numbers_by_other_block_possible_numbers()
 
         cycle_after_shudu_md5 = md5(str(shudu_table).encode('utf-8')).hexdigest()
 
         if error['status']:
             print('本轮计算发现错误：', error['description'])
+            shudu_print('detail')
             break
         else:
             print('本轮计算出', guesses['guessed_num_cnt'] - guessed_num_cnt, '个数字。')
             shudu_print('detail')
             cycle += 1
+    print(guesses)
 
 
 def guess_level_add():
@@ -291,14 +301,17 @@ def guess_level_add():
 
     first_guess_cell = shudu_table[first_guess_cell_position[0]][first_guess_cell_position[1]]
     guess_number = first_guess_cell['possible_numbers'][0]
-    print('第', guesses['level'], '轮猜测从', first_guess_cell_position, '开始，猜测数字为：', guess_number)
     guess_detail = {'level': guesses['level'], 'start_position': first_guess_cell_position,
                     'guessed_num': [guess_number],
                     'original_shudu_table': deepcopy(shudu_table)}
+    print('\n\n第', guesses['level'], '次猜测，第1个数字，单元格', first_guess_cell_position, '猜测数字为：', guess_number)
     guesses['guess_detail'].append(guess_detail)
     # 将这个单元格填充第一个数字
     first_guess_cell['possible_numbers'] = [guess_number]
     first_guess_cell['num'] = guess_number
+    first_guess_cell['guess_level'] = guesses['level']
+    first_guess_cell['guess_order'] = 0
+    # shudu_reset()
 
 
 def guess_another_number():
@@ -322,6 +335,7 @@ def guess_another_number():
     #  初始化数据
     global error, shudu_table
     shudu_table = deepcopy(level_guess_detail['original_shudu_table'])
+    # shudu_reset()
     update_column_and_block_table()
     error = {'status': False, 'position': None, 'description': None}
 
@@ -331,6 +345,10 @@ def guess_another_number():
     # 将这个单元格填充第一个数字
     first_guess_cell['possible_numbers'] = [guess_number]
     first_guess_cell['num'] = guess_number
+    first_guess_cell['guess_level'] = guesses['level']
+    first_guess_cell['guess_order'] = 0
+    print('\n\n第', guesses['level'], '次猜测，第', len(level_guess_detail['guessed_num']), '个数字，单元格', start_position, '猜测数字为：', guess_number)
+    # shudu_print('detail')
     return True
 
 
@@ -338,7 +356,6 @@ def main():
     path = './数独表格.xlsx'
     load_orginal_table(path)
     print('读取原始表格，数据如下：')
-    shudu_print()
 
     checked = check_shudu_table()
     while not error['status'] and not checked:
@@ -354,11 +371,9 @@ def main():
             if not checked:
                 guess_level_add()
 
-    # solve_by_guess()
-
-    print(guesses)
     if checked:
         print('数独求解完成')
+        # shudu_print()
     else:
         print('数独有误！')
 
