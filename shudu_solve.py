@@ -274,6 +274,7 @@ def solve_by_caculate():
 
 def guess_level_add():
     guesses['level'] += 1
+    guesses['guessed_num_cnt'] = 0
     # 找到可能的数字最少的单元格
     first_guess_cell_position = None
     for min_len in range(2, 9):
@@ -347,13 +348,20 @@ def main():
     print('读取原始表格，数据如下：')
     shudu_print()
 
-    solve_by_caculate()
-    solve_by_guess()
+    checked = check_shudu_table()
+    while not error['status'] and not checked:
+        solve_by_caculate()
+        if error['status']:
+            r = guess_another_number()
+            if not r:
+                break
+    # solve_by_guess()
 
     print(guesses)
-    checked = check_shudu_table()
     if checked:
         print('数独求解完成')
+    else:
+        print('数独有误！')
 
 
 if __name__ == '__main__':
