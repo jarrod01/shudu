@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 .idea
 
+数独计算结果.txt
+
 # C extensions
 *.so
 

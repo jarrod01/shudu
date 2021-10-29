@@ -1,5 +1,6 @@
 import xlrd
 import itertools
+import time
 from prettytable import PrettyTable
 from copy import deepcopy
 from hashlib import md5
@@ -8,7 +9,7 @@ from hashlib import md5
 all_numbers = list(i+1 for i in range(9))
 shudu_table = []  # 数独表格
 shudu_table_by_column = []  # 按每列重排的数独表格，方便按列查找
-shudu_table_by_block = []  # 按块重排的数独表格，方便按块查找
+shudu_table_by_block = []  # 按块重排的数独表格，方便按块查找（块：每个小九宫格）
 guesses = {'level': 0, 'guess_detail': [], 'guessed_num_cnt': 0}   # detail里面是每个级别对应的第一个猜测的单元格索引以及猜测的数字
 number_possible_cells_by_block = {}
 # 每一次开始猜测都需要一次deep_copy
@@ -22,9 +23,10 @@ def concat_str(*args):
     return s
 
 
-def shudu_print(blank_cell_format=None):
+def shudu_print(blank_cell_format=None, to_file=False):
     # print(shudu_table)
     print_table = PrettyTable()
+    print_table.field_names = list('C'+str(i+1) for i in range(9))
     for i in range(9):
         if blank_cell_format == 'detail':
             row = list(str(cell['possible_numbers']) if not cell[
@@ -36,6 +38,10 @@ def shudu_print(blank_cell_format=None):
         if i % 3 == 2:
             print_table.add_row(['']*9)
     print(print_table)
+    if to_file:
+        s = print_table.get_string()
+        with open('数独计算结果.txt', 'w', encoding='utf-8') as f:
+            f.write(s)
 
 
 def update_column_and_block_table():
@@ -55,7 +61,10 @@ def update_column_and_block_table():
 
 
 def load_orginal_table(excel_path):
-    workbook = xlrd.open_workbook(excel_path)
+    try:
+        workbook = xlrd.open_workbook(excel_path)
+    except FileNotFoundError:
+        input('未找到数独表格！')
     sheet = workbook.sheet_by_index(0)
     for i in range(0, 9):
         shudu_row = []
@@ -101,7 +110,7 @@ def update_cell(cell):
         cell['guess_level'] = guesses['level']
         cell['guess_order'] = guesses['guessed_num_cnt']
     # 没有可能的数字，则表明猜测有误或数独有误
-    if len(cell['possible_numbers']) == 0:
+    elif len(cell['possible_numbers']) == 0:
         error['status'] = True
         error['position'] = (cell['row'], cell['column'])
         error['description'] = '这个单元格没有找到可能的数字！'
@@ -125,6 +134,7 @@ def find_cell_possible_nums():
 
 # 根据同一行或列的其他两个块的可能的数字，排除本块的可能的数组
 # 当前块内缺的数字，挨个看其在其他同一行块的可能位置，如果在对应行的其他某块内，这个数字只能在某两行，那么这一行的当前块，该两行可能的数字去掉当前的数字
+# 如第一行的第一个块中1只可能在第一行，第二个块中1只可能在第3行，那么第3个块中，1只可能在第2行
 def exclude_cell_possible_numbers_by_other_block_possible_numbers():
     for i in range(9):
         block = shudu_table_by_block[i]
@@ -177,6 +187,7 @@ def exclude_cell_possible_numbers_by_other_block_possible_numbers():
 
 
 # 同一个块或行、列内，某几个数字可能在的位置是重复的，那么这几个格也只能是这几个数字
+# 如某一行内，数字2只能在第2、3、5个单元格，数字3也只能在第2、3、5个单元格，数字5也只能在第2、3、5个单元格，那么第2、3、5个单元格就只能填充这几个数字，不能填充其他数字了
 def exclude_cell_possible_numbers_by_number_possible_cells(nums_possible_cells):
     cnt = len(nums_possible_cells)
     # 只有一个数字的话，就不用猜测了
@@ -202,7 +213,7 @@ def exclude_cell_possible_numbers_by_number_possible_cells(nums_possible_cells):
                             cell['possible_numbers'].remove(num)
 
 
-# 每一行、列、块挨个看每个数字，某个数字只看在一个位置，就填充它
+# 每一行、列、块挨个看每个数字，如果某个数字只看在一个位置，就填充它
 def find_one_possible_place_numbers():
     for table in [shudu_table, shudu_table_by_column, shudu_table_by_block]:
         for i in range(9):
@@ -262,6 +273,7 @@ def solve_by_caculate():
     cycle_after_shudu_md5 = None
     while cycle_before_shudu_md5 != cycle_after_shudu_md5:
         print('\n\n', '第', guesses['level'], '次猜测', '第', cycle, '轮计算')
+        time.sleep(0.5)
         guessed_num_cnt = guesses['guessed_num_cnt']
         cycle_before_shudu_md5 = md5(str(shudu_table).encode('utf-8')).hexdigest()
 
@@ -279,7 +291,7 @@ def solve_by_caculate():
             print('本轮计算出', guesses['guessed_num_cnt'] - guessed_num_cnt, '个数字。')
             shudu_print('detail')
             cycle += 1
-    print(guesses)
+    # print(guesses)
 
 
 def guess_level_add():
@@ -353,9 +365,12 @@ def guess_another_number():
 
 
 def main():
+    input('请将数独录入到“数独表格.xlsx”中，录入后保存，然后按回车：')
     path = './数独表格.xlsx'
     load_orginal_table(path)
     print('读取原始表格，数据如下：')
+    shudu_print()
+    input('确认无误后，请点击回车开始计算：')
 
     checked = check_shudu_table()
     while not error['status'] and not checked:
@@ -372,8 +387,9 @@ def main():
                 guess_level_add()
 
     if checked:
-        print('数独求解完成')
-        # shudu_print()
+        print('\n\n数独求解完成！')
+        shudu_print('detail', True)
+        input('结果已保存，请点击本目录“数独计算结果.txt”文件查看，按回车退出！')
     else:
         print('数独有误！')
 
