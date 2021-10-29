@@ -392,6 +392,7 @@ def main():
         input('结果已保存，请点击本目录“数独计算结果.txt”文件查看，按回车退出！')
     else:
         print('数独有误！')
+        input('按回车退出！')
 
 
 if __name__ == '__main__':
