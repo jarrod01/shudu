@@ -35,7 +35,7 @@ def shudu_print(blank_cell_format=None, to_file=False):
         else:
             row = list(cell['num'] if cell['num'] else '--' for cell in shudu_table[i])
         print_table.add_row(row)
-        if i % 3 == 2:
+        if i % 3 == 2 and i < 8:
             print_table.add_row(['']*9)
     print(print_table)
     if to_file:
@@ -273,7 +273,7 @@ def solve_by_caculate():
     cycle_after_shudu_md5 = None
     while cycle_before_shudu_md5 != cycle_after_shudu_md5:
         print('\n\n', '第', guesses['level'], '次猜测', '第', cycle, '轮计算')
-        time.sleep(0.5)
+        time.sleep(0.2)
         guessed_num_cnt = guesses['guessed_num_cnt']
         cycle_before_shudu_md5 = md5(str(shudu_table).encode('utf-8')).hexdigest()
 
@@ -388,7 +388,7 @@ def main():
 
     if checked:
         print('\n\n数独求解完成！')
-        shudu_print('detail', True)
+        shudu_print('', True)
         input('结果已保存，请点击本目录“数独计算结果.txt”文件查看，按回车退出！')
     else:
         print('数独有误！')
