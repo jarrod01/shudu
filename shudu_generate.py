@@ -1,6 +1,10 @@
 from random import randint
 import xlwt, xlrd
 
+'''
+这样生成的貌似不能保证唯一解，还有待研究
+'''
+
 def shudu_generate():
     num_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     shudu_num = []
