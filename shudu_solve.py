@@ -91,6 +91,10 @@ def load_orginal_table(excel_path):
     return shudu_table
 
 
+def print_method_hit(method):
+    print('命中策略：', method)
+
+
 def exclude_possible_numbers(existing_numbers, possbile_numbers):
     temp_nums = deepcopy(possbile_numbers)
     for num in temp_nums:
@@ -99,7 +103,7 @@ def exclude_possible_numbers(existing_numbers, possbile_numbers):
     return possbile_numbers
 
 
-def update_cell(cell):
+def update_cell(cell, method=None):
     if cell['num']:
         # print('cell已经被填充了！')
         return cell
@@ -114,6 +118,8 @@ def update_cell(cell):
         error['status'] = True
         error['position'] = (cell['row'], cell['column'])
         error['description'] = '这个单元格没有找到可能的数字！'
+    if method:
+        print_method_hit(method)
     return cell
 
 
@@ -129,6 +135,7 @@ def find_cell_possible_nums():
                     existing_numbers = list(c['num'] for c in table[i])
                     cell['possible_numbers'] = exclude_possible_numbers(existing_numbers, cell['possible_numbers'])
                     if len(cell['possible_numbers']) == 1:
+                        print_method_hit('单元格只有一个可能的数字！')
                         update_cell(cell)
 
 
@@ -163,6 +170,7 @@ def exclude_cell_possible_numbers_by_other_block_possible_numbers():
                 for cell in block:
                     if cell['row'] in num_possible_rows and not cell['num'] and num in cell['possible_numbers']:
                         cell['possible_numbers'].remove(num)
+                        print_method_hit('根据数字在同一行其他两个块的可能位置排除本块内的可能位置')
 
             # 找到同一列的两个块
             block_row_indexes = [0, 1, 2]
@@ -184,6 +192,51 @@ def exclude_cell_possible_numbers_by_other_block_possible_numbers():
                 for cell in block:
                     if cell['column'] in num_possible_columns and not cell['num'] and num in cell['possible_numbers']:
                         cell['possible_numbers'].remove(num)
+                        print_method_hit('根据数字在同一列其他两个块的可能位置排除本块内的可能位置')
+
+# x-wing策略，当某两行的某个数字的位置只能是同样的某两个列，那么这两个列的其他行不能有这个数字
+def do_exclude_cell_possible_numbers_by_x_wing(start='row'):
+    if start == 'row':
+        tables = [shudu_table, shudu_table_by_column]
+    else:
+        tables = [shudu_table_by_column, shudu_table]
+
+    # 记录每个数字在不同行的位置和数量
+    nums_positions = {}
+
+    # 每一行循环找一下每个数字可能的位置
+    for i in range(9):
+        existing_numbers = list(c['num'] for c in tables[0][i])
+        for num in all_numbers:
+            if num in existing_numbers:
+                continue
+            num_possible_positions = []
+            for j in range(9):
+                cell = tables[0][i][j]
+                if num in cell['possible_numbers']:
+                    num_possible_positions.append(j)
+            if len(num_possible_positions) == 2:
+                data = {'row': i, 'positions': num_possible_positions}
+                if num not in nums_positions:
+                    nums_positions[num] = [data]
+                else:
+                    nums_positions[num].append(data)
+
+    for num in nums_positions:
+        num_positions = nums_positions[num]
+        for i in range(len(num_positions)-1):
+            for j in range(i+1, len(num_positions)):
+                if num_positions[i]['positions'][0] == num_positions[j]['positions'][0] and num_positions[i]['positions'][1] == num_positions[j]['positions'][1]:
+                    rows = [num_positions[i]['row'], num_positions[j]['row']]
+                    for column in num_positions[i]['positions']:
+                        for row in range(9):
+                            cell = tables[1][column][row]
+                            if row in rows:
+                                continue
+                            if num in cell['possible_numbers']:
+                                cell['possible_numbers'].remove(num)
+                                print_method_hit('x-wing策略命中！')
+
 
 
 # 同一个块或行、列内，某几个数字可能在的位置是重复的，那么这几个格也只能是这几个数字
@@ -211,6 +264,7 @@ def exclude_cell_possible_numbers_by_number_possible_cells(nums_possible_cells):
                     for num in cell_possible_numbers:
                         if num not in combination:
                             cell['possible_numbers'].remove(num)
+                            print_method_hit('命中同一行或块某几个单元格可能的数字重复，其他单元格不可能是这几个数字')
 
 
 # 每一行、列、块挨个看每个数字，如果某个数字只看在一个位置，就填充它
@@ -234,7 +288,7 @@ def find_one_possible_place_numbers():
                     break
                 elif len(num_possible_cells) == 1:
                     num_possible_cells[0]['possible_numbers'] = [num]
-                    update_cell(num_possible_cells[0])
+                    update_cell(num_possible_cells[0], '某个数字可能的位置只有一个')
                 nums_possible_cells[num] = num_possible_cells
 
             # 同一个块或行、列内，某几个数字可能在的位置是重复的，那么这几个格也只能是这几个数字
@@ -280,6 +334,8 @@ def solve_by_caculate():
         find_cell_possible_nums()
         find_one_possible_place_numbers()
         exclude_cell_possible_numbers_by_other_block_possible_numbers()
+        do_exclude_cell_possible_numbers_by_x_wing('row')
+        do_exclude_cell_possible_numbers_by_x_wing('column')
 
         cycle_after_shudu_md5 = md5(str(shudu_table).encode('utf-8')).hexdigest()
 
